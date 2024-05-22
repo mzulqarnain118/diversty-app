@@ -1,0 +1,213 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  company       String?
+  Survey        Survey[]
+}
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  USER
+}
+
+model VerificationToken {
+  id         String @id @default(cuid())
+  identifier String
+  token      String @unique @db.VarChar(500)
+
+  @@unique([identifier, token])
+}
+
+model Survey {
+  id          String       @id @default(cuid())
+  title       String
+  description String       @db.Text
+  created_at  DateTime     @default(now())
+  isTemplate  Boolean      @default(false)
+  isArchived  Boolean      @default(false)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Question    Question[]
+  Response    Response[]
+  Respondent  Respondent[]
+  Section     Section[]
+}
+
+model GDPRForm {
+  id          String @id @default(cuid())
+  title       String
+  description String @db.Text
+}
+
+model Question {
+  id            Int      @id @default(autoincrement())
+  question_text String   @db.Text
+  question_type String
+  created_at    DateTime @default(now())
+
+  survey_id               String
+  closeEndedChoiceType_id Int?
+  closeEndedChoiceType    CloseEndedChoiceType? @relation(fields: [closeEndedChoiceType_id], references: [id])
+  survey                  Survey                @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  Choice                  Choice[]
+  Response                Response[]
+  isTemplate              Boolean               @default(false)
+  isPublic                Boolean               @default(false)
+  orderNumber             Int                   @default(0)
+  tags                    QuestionTag[]
+}
+
+model Tag {
+  id          String        @id @default(cuid())
+  title       String        @unique
+  description String        @db.Text
+  QuestionTag QuestionTag[]
+}
+
+model QuestionTag {
+  id         Int      @id @default(autoincrement())
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId Int
+}
+
+model Section {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  title       String
+  description String   @db.Text
+  survey      Survey   @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  survey_id   String
+  orderNumber Int      @default(0)
+}
+
+model Choice {
+  id Int @id @default(autoincrement())
+
+  question_id    Int
+  question       Question         @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  choice_text    String           @db.Text
+  Response       Response[]
+  ChoiceResponse ChoiceResponse[]
+}
+
+model CloseEndedChoiceType {
+  id               Int                @id @default(autoincrement())
+  name             String
+  description      String?
+  CloseEndedChoice CloseEndedChoice[]
+  Question         Question[]
+}
+
+model CloseEndedChoice {
+  id                    Int                  @id @default(autoincrement())
+  choice_text           String
+  type_id               Int
+  CloseEnededChoiceType CloseEndedChoiceType @relation(fields: [type_id], references: [id])
+  Response              Response[]
+}
+
+model Respondent {
+  id                 Int       @id @default(autoincrement())
+  uuid               String    @default(cuid())
+  email              String
+  isInvitationSent   Boolean   @default(false)
+  isViewed           Boolean   @default(false)
+  isSubmitted        Boolean   @default(false)
+  invitationSendDate DateTime?
+  viewedDate         DateTime?
+  submittedDate      DateTime?
+
+  surveyId String
+  survey   Survey     @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  Response Response[]
+  GDPR     GDPR[]
+
+  @@unique([surveyId, email])
+}
+
+model GDPR {
+  id           Int        @id @default(autoincrement())
+  name         String
+  date         DateTime   @default(now())
+  isAgree      Boolean    @default(false)
+  respondentId Int        @unique
+  respondent   Respondent @relation(fields: [respondentId], references: [id], onDelete: Cascade)
+}
+
+model Response {
+  id                   Int               @id @default(autoincrement())
+  survey_id            String
+  survey               Survey            @relation(fields: [survey_id], references: [id])
+  question_id          Int
+  question             Question          @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  response_text        String?           @db.Text
+  choice_id            Int?
+  choice               Choice?           @relation(fields: [choice_id], references: [id])
+  closeEnededChoice_id Int?
+  closeEndedChoice     CloseEndedChoice? @relation(fields: [closeEnededChoice_id], references: [id])
+  respondent_id        Int
+  respondent           Respondent        @relation(fields: [respondent_id], references: [id], onDelete: Cascade)
+  isSubmitted          Boolean           @default(false)
+  isAnswered           Boolean           @default(false)
+  ChoiceResponse       ChoiceResponse[]
+
+  @@unique([survey_id, question_id, respondent_id])
+}
+
+model ChoiceResponse {
+  responseId Int
+  choiceId   Int
+  response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  choice     Choice   @relation(fields: [choiceId], references: [id], onDelete: Cascade)
+
+  @@id([responseId, choiceId])
+}

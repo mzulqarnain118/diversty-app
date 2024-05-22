@@ -1,0 +1,11 @@
+/* Use [class*=...] for partial class name match */
+
+.editor [class*="ProseMirror"] {
+  min-height: 100px;
+  padding: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 5px;
+}
+.editor [class*="ProseMirror-focused"] {
+  outline: none !important;
+}

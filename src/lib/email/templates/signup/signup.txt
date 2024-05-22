@@ -1,0 +1,7 @@
+Hi {username},
+
+Thank you for signing up! Please copy and paste the following URL into your browser to verify your email address:
+
+{verificationLink}
+
+If you didn't sign up for this account, you can safely ignore this email.
